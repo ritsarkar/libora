@@ -14,6 +14,33 @@ app = Flask(
 )
 app.secret_key = "smart-library-management-system-secret-key-2026"
 
+class VercelPathMiddleware:
+    """
+    Ensures seamless path resolution under Vercel serverless rewrites.
+    Strips internal rewrite prefixes (/api/index.py, /api/index) and
+    replaces PATH_INFO with HTTP_X_MATCHED_PATH if provided by Vercel edge.
+    """
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        matched_path = environ.get("HTTP_X_MATCHED_PATH")
+        if matched_path and not matched_path.startswith("/api/index"):
+            environ["PATH_INFO"] = matched_path
+
+        path = environ.get("PATH_INFO", "")
+        for prefix in ["/api/index.py", "/api/index"]:
+            if path == prefix:
+                environ["PATH_INFO"] = "/"
+                break
+            elif path.startswith(prefix + "/"):
+                environ["PATH_INFO"] = path[len(prefix):]
+                break
+
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
+
 DEFAULT_CATEGORIES = [
     "Programming",
     "Database Systems",
@@ -130,6 +157,8 @@ def ensure_db_on_request():
         init()
 
 @app.route("/")
+@app.route("/api/index")
+@app.route("/api/index.py")
 def home():
     c = db()
     q = request.args.get("q", "").strip()

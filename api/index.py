@@ -1,12 +1,13 @@
 import os
 import sys
 
-# Ensure root directory is on sys.path so app and its templates/static assets are found
+# Ensure root directory is on sys.path so app, templates, and static assets are found
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from app import app
 
-# Vercel Serverless Function entry point
-app = app
+# Expose WSGI application for all Vercel runtime detection conventions
+handler = app
+application = app
