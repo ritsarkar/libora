@@ -64,11 +64,30 @@ http://127.0.0.1:5000
 
 ---
 
+## ☁️ Deploy to Vercel
+
+Libora is pre-configured for one-click deployment on [Vercel](https://vercel.com):
+
+1. **Push your repository to GitHub** (already done: `https://github.com/ritsarkar/libora`).
+2. Go to your [Vercel Dashboard](https://vercel.com/dashboard) and click **"Add New..." > "Project"**.
+3. Import your **`libora`** repository.
+4. Leave all build settings at their defaults (Framework Preset: **Other**, Root Directory: `./`).
+5. Click **"Deploy"**.
+
+> [!NOTE]
+> Vercel's Serverless environment automatically routes all requests via `vercel.json` to `api/index.py`. The SQLite database is safely initialized in Vercel's ephemeral `/tmp` storage, preventing any read-only filesystem errors.
+
+---
+
 ## 📁 Project Structure
 
 ```
-├── app.py                      # Core Flask application, routing, and SQLite database models
-├── requirements.txt            # Python dependencies
+├── app.py                      # Core Flask application, routing, and SQLite models
+├── wsgi.py                     # WSGI entry point
+├── vercel.json                 # Vercel serverless routing & rewrite configuration
+├── api/
+│   └── index.py                # Vercel serverless function entrypoint
+├── requirements.txt            # Python dependencies (Flask)
 ├── .gitignore                  # Git ignore rules for Python, SQLite, and IDE files
 ├── README.md                   # Project documentation
 ├── static/

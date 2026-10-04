@@ -1,10 +1,18 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+import os
+import shutil
+import tempfile
 import sqlite3
 from datetime import date
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
 app.secret_key = "smart-library-management-system-secret-key-2026"
-DB = "library.db"
 
 DEFAULT_CATEGORIES = [
     "Programming",
@@ -22,13 +30,38 @@ DEFAULT_CATEGORIES = [
     "Literature & Humanities"
 ]
 
-def db():
-    c = sqlite3.connect(DB)
-    c.row_factory = sqlite3.Row
-    return c
+def get_db_path():
+    # If running on Vercel or serverless / AWS Lambda environment
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return os.path.join(tempfile.gettempdir(), "library.db")
+
+    local_db = os.path.join(BASE_DIR, "library.db")
+    try:
+        # Check if local directory is writable
+        test_file = os.path.join(BASE_DIR, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("1")
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        return local_db
+    except (OSError, IOError, PermissionError):
+        return os.path.join(tempfile.gettempdir(), "library.db")
 
 def init():
-    c = db()
+    database_path = get_db_path()
+    os.makedirs(os.path.dirname(os.path.abspath(database_path)), exist_ok=True)
+
+    # If in temp directory and a pre-existing local library.db exists in project, copy it
+    bundled_db = os.path.join(BASE_DIR, "library.db")
+    if database_path != bundled_db and not os.path.exists(database_path) and os.path.exists(bundled_db):
+        try:
+            shutil.copy2(bundled_db, database_path)
+            return
+        except Exception:
+            pass
+
+    c = sqlite3.connect(database_path)
+    c.row_factory = sqlite3.Row
     c.execute("""CREATE TABLE IF NOT EXISTS books(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
@@ -66,11 +99,35 @@ def init():
                 ("Python Basics", "R. Sharma", "Programming", 450, "978-0134076423", "Rack A-1"),
                 ("Database Systems", "A. Kumar", "Database Systems", 550, "978-0133970777", "Rack B-2"),
                 ("Web Development", "S. Rao", "Web Development", 500, "978-1491950296", "Rack C-1"),
-                ("Data Structures", "M. Singh", "Programming", 600, "978-0262033848", "Rack A-2")
+                ("Data Structures & Algorithms", "M. Singh", "Data Structures & Algorithms", 600, "978-0262033848", "Rack A-2"),
+                ("Artificial Intelligence: Modern Approach", "S. Russell & P. Norvig", "Artificial Intelligence & ML", 850, "978-0134610993", "Rack D-1"),
+                ("Computer Networks", "A. Tanenbaum", "Computer Networks", 700, "978-0132126953", "Rack B-1"),
+                ("Operating System Concepts", "A. Silberschatz", "Operating Systems", 650, "978-1118063330", "Rack C-3"),
+                ("Clean Code", "Robert C. Martin", "Programming", 550, "978-0132350884", "Rack A-3")
             ]
         )
     c.commit()
     c.close()
+
+def db():
+    database_path = get_db_path()
+    if not os.path.exists(database_path):
+        init()
+    c = sqlite3.connect(database_path)
+    c.row_factory = sqlite3.Row
+    return c
+
+# Eagerly initialize DB on load
+try:
+    init()
+except Exception as _e:
+    print(f"Notice during startup init: {_e}")
+
+@app.before_request
+def ensure_db_on_request():
+    database_path = get_db_path()
+    if not os.path.exists(database_path):
+        init()
 
 @app.route("/")
 def home():
@@ -339,6 +396,28 @@ def receipt(iid):
         flash("Receipt record not found.", "error")
         return redirect(url_for("home"))
     return render_template("receipt.html", i=i)
+
+@app.route("/api/health")
+def api_health():
+    return jsonify({
+        "status": "healthy",
+        "app": "Libora Smart Library",
+        "database": get_db_path()
+    })
+
+@app.errorhandler(500)
+def handle_500(err):
+    app.logger.error(f"Internal 500 error caught: {err}")
+    return render_template(
+        "home.html",
+        books=[],
+        issues=[],
+        stats=[0, 0, 0, 0],
+        categories=DEFAULT_CATEGORIES,
+        q="",
+        available_only="",
+        avail_count=0
+    ), 500
 
 if __name__ == "__main__":
     init()
