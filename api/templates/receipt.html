@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="no-print" style="display:flex; justify-content:space-between; margin-bottom:18px; max-width:850px; margin-left:auto; margin-right:auto;">
+  <a class="small btn-secondary" href="/">← Dashboard</a>
+  <div style="display: flex; gap: 8px;">
+    <a class="small btn" href="/admin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="sf-icon"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Admin Portal</a>
+    <button class="small btn" onclick="window.print()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="sf-icon"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print / Save PDF</button>
+  </div>
+</div>
+
+<section class="bill">
+  <div class="billhead">
+    <div>
+      <div style="margin-bottom: 8px;">
+        <img src="{{ url_for('static', filename='libora_logo.png') }}" alt="Libora" style="height: 36px; width: auto; display: block;">
+      </div>
+      <p style="margin: 2px 0 0; color: #64748b; font-size: 13px;">Official Circulation & Fine Billing Receipt</p>
+    </div>
+    <div style="text-align: right;">
+      <span class="badge" style="background: #e0e7ff; color: #4338ca; font-size: 13px; padding: 6px 12px;">
+        RECEIPT #{{i.id}}
+      </span>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Status: {{i.status}}</div>
+    </div>
+  </div>
+
+  <div class="line"></div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; font-size: 13px; background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+    <div>
+      <span style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Student Information</span>
+      <div style="font-weight: 700; font-size: 14px; margin-top: 4px; color: #0f172a;">{{i.student}}</div>
+      <div style="color: #475569; margin-top: 2px;">Phone: {{i.phone}}</div>
+      <div style="color: #64748b; font-size: 12px; margin-top: 4px;">Issue Date: <strong>{{i.issue_date}}</strong></div>
+    </div>
+    <div>
+      <span style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Book Details</span>
+      <div style="font-weight: 700; font-size: 14px; margin-top: 4px; color: #0f172a;">{{i.title}}</div>
+      <div style="color: #475569; margin-top: 2px;">by {{i.author}} {% if i.price %}(Value: ₹{{"%.2f"|format(i.price)}}){% endif %}</div>
+      <div style="color: #64748b; font-size: 12px; margin-top: 4px;">
+        Due Date: <strong>{{i.due_date}}</strong> 
+        {% if i.return_date %}| Returned: <strong>{{i.return_date}}</strong>{% endif %}
+      </div>
+      {% if i.isbn or i.rack %}
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+          {% if i.isbn %}ISBN: {{i.isbn}} {% endif %}
+          {% if i.rack %}| {{i.rack}}{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Fee Breakdown</th>
+        <th style="text-align: right;">Amount (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Book Circulation & Issue Service</td>
+        <td style="text-align: right;">₹0.00</td>
+      </tr>
+      <tr>
+        <td>
+          Late Return Fine Calculation
+          <div style="font-size: 11px; color: #94a3b8;">Rate: ₹10 per overdue day beyond due date</div>
+        </td>
+        <td style="text-align: right; font-weight: 700; color: {% if i.fee > 0 %}#dc2626{% else %}#16a34a{% endif %};">
+          ₹{{"%.2f"|format(i.fee)}}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="total">
+    Total Amount: ₹{{"%.2f"|format(i.fee)}}
+  </div>
+
+  <p class="center muted" style="margin-top: 30px; font-size: 12px;">
+    Smart Library Automated Management System • BCA Project • Keep this receipt for reference.
+  </p>
+</section>
+{% endblock %}

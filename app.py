@@ -3,40 +3,59 @@ import shutil
 import tempfile
 import sqlite3
 from datetime import date
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from jinja2 import FileSystemLoader, ChoiceLoader
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Resolve candidate template directories for both local and serverless execution
+template_dirs = [
+    d for d in [
+        os.path.join(BASE_DIR, "templates"),
+        os.path.join(BASE_DIR, "api", "templates"),
+        os.path.join(os.getcwd(), "templates"),
+        os.path.join(os.getcwd(), "api", "templates"),
+        "/var/task/templates",
+        "/var/task/api/templates"
+    ] if os.path.isdir(d)
+]
+
+primary_tpl = template_dirs[0] if template_dirs else os.path.join(BASE_DIR, "templates")
+primary_static = os.path.join(BASE_DIR, "static") if os.path.isdir(os.path.join(BASE_DIR, "static")) else os.path.join(BASE_DIR, "api", "static")
+
 app = Flask(
     __name__,
-    template_folder=os.path.join(BASE_DIR, "templates"),
-    static_folder=os.path.join(BASE_DIR, "static")
+    template_folder=primary_tpl,
+    static_folder=primary_static
 )
 app.secret_key = "smart-library-management-system-secret-key-2026"
 
+if template_dirs:
+    app.jinja_loader = ChoiceLoader([FileSystemLoader(d) for d in template_dirs])
+
 class VercelPathMiddleware:
     """
-    Ensures seamless path resolution under Vercel serverless rewrites.
-    Strips internal rewrite prefixes (/api/index.py, /api/index) and
-    replaces PATH_INFO with HTTP_X_MATCHED_PATH if provided by Vercel edge.
+    Ensures seamless path resolution under Vercel serverless function rewrites.
+    Strips internal rewrite prefixes (/api/index.py, /api/index) so
+    Flask routes match the user's actual requested URL path.
     """
     def __init__(self, wsgi_app):
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ, start_response):
-        matched_path = environ.get("HTTP_X_MATCHED_PATH")
-        if matched_path and not matched_path.startswith("/api/index"):
-            environ["PATH_INFO"] = matched_path
-
         path = environ.get("PATH_INFO", "")
         for prefix in ["/api/index.py", "/api/index"]:
-            if path == prefix:
-                environ["PATH_INFO"] = "/"
+            if path == prefix or path == prefix + "/":
+                path = "/"
                 break
             elif path.startswith(prefix + "/"):
-                environ["PATH_INFO"] = path[len(prefix):]
+                path = path[len(prefix):]
                 break
 
+        if not path:
+            path = "/"
+
+        environ["PATH_INFO"] = path
         return self.wsgi_app(environ, start_response)
 
 app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
@@ -156,9 +175,12 @@ def ensure_db_on_request():
     if not os.path.exists(database_path):
         init()
 
-@app.route("/")
 @app.route("/api/index")
 @app.route("/api/index.py")
+@app.route("/index")
+@app.route("/index.html")
+@app.route("/dashboard")
+@app.route("/")
 def home():
     c = db()
     q = request.args.get("q", "").strip()
@@ -434,19 +456,31 @@ def api_health():
         "database": get_db_path()
     })
 
+@app.route("/static/<path:filename>")
+def serve_custom_static(filename):
+    for s_dir in [
+        os.path.join(BASE_DIR, "static"),
+        os.path.join(BASE_DIR, "api", "static"),
+        os.path.join(os.getcwd(), "static"),
+        os.path.join(os.getcwd(), "api", "static"),
+        "/var/task/static",
+        "/var/task/api/static"
+    ]:
+        if os.path.isfile(os.path.join(s_dir, filename)):
+            return send_from_directory(s_dir, filename)
+    return app.send_static_file(filename)
+
+@app.errorhandler(404)
+def handle_404(err):
+    return redirect(url_for("home"))
+
 @app.errorhandler(500)
 def handle_500(err):
     app.logger.error(f"Internal 500 error caught: {err}")
-    return render_template(
-        "home.html",
-        books=[],
-        issues=[],
-        stats=[0, 0, 0, 0],
-        categories=DEFAULT_CATEGORIES,
-        q="",
-        available_only="",
-        avail_count=0
-    ), 500
+    try:
+        return home()
+    except Exception as ex:
+        return f"<h1>Libora Smart Library</h1><p>Application Notice: {ex}</p>", 500
 
 if __name__ == "__main__":
     init()
