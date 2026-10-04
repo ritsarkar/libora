@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; position: relative; z-index: 2;">
+    <div>
+      <div style="display: inline-flex; align-items: center; background: rgba(255, 255, 255, 0.95); padding: 4px 14px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);">
+        <img src="{{ url_for('static', filename='libora_logo.png') }}" alt="Libora" style="height: 28px; width: auto; display: block;">
+      </div>
+      <h1>Libora Smart Library Dashboard</h1>
+      <p>Automated book catalog circulation, student loan registers, late fine billing, and academic repository management.</p>
+    </div>
+    <div>
+      <a class="btn-issue-lg" href="/issue">
+        {% include "components/book_logo.html" %}
+        <span>Issue a Book</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="stat">
+    <span>TOTAL REPOSITORY</span>
+    <strong>{{stats[0]}}</strong>
+    <small>Catalog books</small>
+  </div>
+  <div class="stat">
+    <span style="color:#16a34a">AVAILABLE COPIES</span>
+    <strong style="color:#16a34a">{{stats[1]}}</strong>
+    <small>In library stacks</small>
+  </div>
+  <div class="stat">
+    <span style="color:#d97706">CURRENTLY ISSUED</span>
+    <strong style="color:#d97706">{{stats[2]}}</strong>
+    <small>On student loan</small>
+  </div>
+  <div class="stat">
+    <span style="color:#4f46e5">FINE COLLECTED</span>
+    <strong style="color:#4f46e5">₹{{"%.2f"|format(stats[3])}}</strong>
+    <small>Overdue dues (₹10/day)</small>
+  </div>
+</div>
+
+<!-- Books Catalog Card -->
+<section class="card" style="margin-bottom: 24px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <div>
+      <h2 style="margin: 0; display: inline-flex; align-items: center; gap: 8px;"><span class="sf-badge sf-badge-blue"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span><span>Central Library Stacks ({{ books|length }} records)</h2>
+      {% if q %}
+        <div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #1e40af; background: #dbeafe; padding: 4px 12px; border-radius: 9999px;">
+          <span>Showing available results for <strong>"{{ q }}"</strong> ({{ books|length }} found)</span>
+          <a href="/" style="color: #2563eb; font-weight: 600; text-decoration: none; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Clear filter"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Clear</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Title & Author</th>
+        <th>Category</th>
+        <th>Rack/Shelf</th>
+        <th>Price</th>
+        <th>Status</th>
+        <th style="text-align: right;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in books %}
+      <tr>
+        <td>
+          <strong>{{b.title}}</strong><br>
+          <span style="color:#64748b; font-size:12px;">{{b.author}}</span>
+        </td>
+        <td><span style="background:#f1f5f9; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:600;">{{b.category}}</span></td>
+        <td style="color:#475569; font-size:12px;">{{b.rack or '—'}}</td>
+        <td>₹{{"%.2f"|format(b.price)}}</td>
+        <td>
+          <span class="badge {% if b.status == 'Available' %}badge-avail{% else %}badge-issued{% endif %}">
+            {{b.status}}
+          </span>
+        </td>
+        <td style="text-align: right;">
+          {% if b.status == 'Available' %}
+            <a href="/issue" class="small green" style="text-decoration:none; padding:4px 8px; font-size:11px;">Issue</a>
+          </td>
+          {% else %}
+            <span style="color:#94a3b8; font-size:11px;">Issued</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 24px; color: #94a3b8;">
+          No books found matching your search.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<!-- Issue / Return Records Card -->
+<section class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap: wrap; gap: 10px;">
+    <h2 style="display: flex; align-items: center; gap: 8px;"><span class="sf-badge sf-badge-slate"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span><span>Student Circulation & Late Return Register</span></h2>
+    <a href="/issue" class="btn-issue-lg" style="padding: 9px 18px; font-size: 13px;">
+      {% include "components/book_logo.html" %}
+      <span>Issue Book to Student</span>
+    </a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Student & Contact</th>
+        <th>Book Title</th>
+        <th>Issue Date</th>
+        <th>Due Date</th>
+        <th>Fine Amount</th>
+        <th>Status</th>
+        <th style="text-align: right;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in issues %}
+      <tr>
+        <td>
+          <strong>{{i.student}}</strong><br>
+          <span style="color:#64748b; font-size:12px;">{{i.phone}}</span>
+        </td>
+        <td>
+          <strong>{{i.title}}</strong>
+        </td>
+        <td>{{i.issue_date}}</td>
+        <td>{{i.due_date}}</td>
+        <td style="font-weight:700; color:{% if i.fee > 0 %}#dc2626{% else %}#16a34a{% endif %};">₹{{"%.2f"|format(i.fee)}}</td>
+        <td>
+          <span class="badge {% if i.status == 'Issued' %}badge-issued{% else %}badge-returned{% endif %}">
+            {{i.status}}
+          </span>
+        </td>
+        <td class="actions-cell">
+          <a class="small btn-secondary" href="/receipt/{{i.id}}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sf-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg> Receipt</a>
+          {% if i.status=="Issued" %}
+            <a class="small green" href="/return/{{i.id}}" onclick="return confirm('Confirm book return for {{i.student}}?')"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="sf-icon"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg> Return</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" style="text-align:center; padding:24px; color:#94a3b8;">No circulation records yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% endblock %}

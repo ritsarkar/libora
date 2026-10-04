@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Libora - Smart Library Management System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav>
+    <div class="brand">
+      <a href="/" style="display:flex; align-items:center; gap:12px; text-decoration:none;">
+        <div class="logo-badge">
+          <img src="{{ url_for('static', filename='libora_logo.png') }}" alt="Libora" style="height: 30px; width: auto; display: block;">
+        </div>
+      </a>
+    </div>
+    <div class="nav">
+      <!-- Only show Dashboard button if NOT currently on the Dashboard -->
+      {% if request.endpoint != 'home' %}
+        <a href="/" class="nav-link">Dashboard</a>
+      {% endif %}
+
+      <!-- Creative, Premium-Feel "Optic Command Capsule" Search Button -->
+      <button type="button" class="nav-search-capsule" id="spotlightTriggerBtn" title="Search Central Stacks (Ctrl+K)" aria-label="Search repository">
+        <span class="optic-icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="11" cy="11" r="7" stroke="url(#opticGrad)" stroke-width="2.3" stroke-linecap="round"/>
+            <path d="M16.5 16.5L21.5 21.5" stroke="url(#opticGrad)" stroke-width="2.5" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="opticGrad" x1="4" y1="4" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#38bdf8"/>
+                <stop offset="1" stop-color="#6366f1"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="optic-pulse-dot"></span>
+        </span>
+        <span class="nav-search-label">Search Stacks</span>
+        <span class="nav-search-keycap"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>
+      </button>
+
+      <a href="/issue" class="nav-issue-btn">
+        {% with size='small' %}{% include "components/book_logo.html" %}{% endwith %}
+        <span>Issue Book</span>
+      </a>
+
+      <!-- Only show Admin button if NOT currently on the Admin page -->
+      {% if request.endpoint != 'admin' %}
+        <a href="/admin" class="nav-admin-popup-btn" title="Admin Portal" aria-label="Admin">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L4 5V11.5C4 16.5 7.4 21.1 12 22.3C16.6 21.1 20 16.5 20 11.5V5L12 2Z" fill="#eff6ff" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="12" cy="9" r="2.8" fill="#2563eb"/>
+            <path d="M7.5 16.5C7.5 14.5 9.5 13.2 12 13.2C14.5 13.2 16.5 14.5 16.5 16.5" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <div class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert {{ category }}">
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;font-weight:bold;font-size:14px;color:inherit; display:flex; align-items:center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+
+    <div class="sketch-banner no-print">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="logo-badge" style="padding: 2px 8px; box-shadow: none; border-color: #cbd5e1;">
+          <img src="{{ url_for('static', filename='libora_logo.png') }}" alt="Libora" style="height: 20px; width: auto;">
+        </div>
+        <div>
+          <strong style="color: #334155;">Libora • Academic Complex & Central Library Architecture</strong>
+          <div style="font-size: 11px; color: #94a3b8;">Main Administrative Building • Reading Halls • Campus Elevation Study</div>
+        </div>
+      </div>
+      <div style="font-size: 11px; font-family: monospace; color: #64748b;">
+        LIBORA-SYS / 2026
+      </div>
+    </div>
+  </div>
+
+    <!-- =========================================================
+       CREATIVE & PREMIUM LIBORA SPOTLIGHT SEARCH COMMAND PALETTE
+       ========================================================= -->
+  <div id="spotlightOverlay" class="spotlight-overlay" role="dialog" aria-modal="true" aria-label="Libora Spotlight Search">
+    <div class="spotlight-window" onclick="event.stopPropagation()">
+      <form id="spotlightForm" method="get" action="/">
+        <div class="spotlight-header">
+          <svg class="spotlight-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/>
+            <line x1="21" y1="21" x2="16.5" y2="16.5"/>
+          </svg>
+          <input type="text" id="spotlightSearchInput" name="q" class="spotlight-input" 
+                 placeholder="Type book title, author, category, or rack location..." 
+                 autocomplete="off" aria-label="Search books">
+          <input type="hidden" name="available_only" id="spotlightAvailOnly" value="1">
+          <button type="button" class="spotlight-close-btn" id="spotlightCloseBtn" title="Close (ESC)">ESC</button>
+        </div>
+      </form>
+
+      <div class="spotlight-tabs">
+        <button type="button" class="spotlight-tab-btn active" id="tabAvail" onclick="setSpotlightFilter('available')"><span class="apple-dot apple-dot-green" style="margin-right: 4px;"></span>Available Only</button>
+        <button type="button" class="spotlight-tab-btn" id="tabAll" onclick="setSpotlightFilter('all')"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>All Catalog</button>
+      </div>
+
+      <div class="spotlight-results" id="spotlightResults">
+        <div style="padding: 28px 20px; text-align: center; color: #64748b; font-size: 13px;">
+          Type to search repository titles, authors, categories or rack locations...
+        </div>
+      </div>
+
+      <div class="spotlight-footer">
+        <div>
+          <span>Navigate <kbd>↑</kbd> <kbd>↓</kbd></span>
+          <span style="margin-left: 10px;">Issue / Open <kbd>↵</kbd></span>
+        </div>
+        <div>
+          <span>Exit <kbd>ESC</kbd></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Libora Smart Library Management System • Automated Catalog & Circulation Portal
+  </footer>
+
+  <script>
+    let currentFilter = 'available';
+    let selectedIndex = -1;
+    let currentItems = [];
+
+    const overlay = document.getElementById('spotlightOverlay');
+    const input = document.getElementById('spotlightSearchInput');
+    const resultsBox = document.getElementById('spotlightResults');
+    const triggerBtn = document.getElementById('spotlightTriggerBtn');
+    const closeBtn = document.getElementById('spotlightCloseBtn');
+    const availOnlyInput = document.getElementById('spotlightAvailOnly');
+    const tabAvail = document.getElementById('tabAvail');
+    const tabAll = document.getElementById('tabAll');
+
+    function openSpotlight() {
+      if (!overlay) return;
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => {
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 50);
+      if (input && input.value.trim().length >= 1) {
+        fetchSpotlightResults(input.value.trim());
+      }
+    }
+
+    function closeSpotlight() {
+      if (!overlay) return;
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+      selectedIndex = -1;
+    }
+
+    if (triggerBtn) triggerBtn.addEventListener('click', openSpotlight);
+    if (closeBtn) closeBtn.addEventListener('click', closeSpotlight);
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeSpotlight();
+      });
+    }
+
+    // Global keyboard shortcut: Ctrl+K / Cmd+K or / (when not in form field)
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        if (overlay && overlay.classList.contains('active')) {
+          closeSpotlight();
+        } else {
+          openSpotlight();
+        }
+      } else if (e.key === 'Escape' && overlay && overlay.classList.contains('active')) {
+        closeSpotlight();
+      } else if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        openSpotlight();
+      }
+    });
+
+    function setSpotlightFilter(mode) {
+      currentFilter = mode;
+      if (mode === 'available') {
+        tabAvail.classList.add('active');
+        tabAll.classList.remove('active');
+        availOnlyInput.value = '1';
+      } else {
+        tabAll.classList.add('active');
+        tabAvail.classList.remove('active');
+        availOnlyInput.value = '0';
+      }
+      if (input && input.value.trim().length >= 1) {
+        fetchSpotlightResults(input.value.trim());
+      }
+    }
+
+    let debounceTimer;
+    if (input) {
+      input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const q = this.value.trim();
+        if (q.length === 0) {
+          resultsBox.innerHTML = `
+            <div style="padding: 28px 20px; text-align: center; color: #64748b; font-size: 13px;">
+              Type to search repository titles, authors, categories or rack locations...
+            </div>
+          `;
+          currentItems = [];
+          selectedIndex = -1;
+          return;
+        }
+        debounceTimer = setTimeout(() => {
+          fetchSpotlightResults(q);
+        }, 150);
+      });
+
+      input.addEventListener('keydown', function(e) {
+        const items = resultsBox.querySelectorAll('.spotlight-item');
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          selectedIndex = (selectedIndex + 1) % items.length;
+          updateHighlight(items);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          updateHighlight(items);
+        } else if (e.key === 'Enter') {
+          if (selectedIndex >= 0 && selectedIndex < items.length) {
+            e.preventDefault();
+            items[selectedIndex].click();
+          }
+        }
+      });
+    }
+
+    function updateHighlight(items) {
+      items.forEach((item, idx) => {
+        if (idx === selectedIndex) {
+          item.classList.add('highlighted');
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.classList.remove('highlighted');
+        }
+      });
+    }
+
+    function fetchSpotlightResults(q) {
+      fetch(`/api/search-available?q=${encodeURIComponent(q)}&filter=${currentFilter}`)
+        .then(r => r.json())
+        .then(data => {
+          currentItems = data;
+          selectedIndex = -1;
+          if (!data || data.length === 0) {
+            resultsBox.innerHTML = `
+              <div style="padding: 28px 20px; text-align: center; color: #94a3b8; font-size: 13px;">
+                <span style="display:inline-block;margin-bottom:6px;"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></span><br>No books found matching "<strong>${escapeHtml(q)}</strong>".<br>
+                <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+                  Press <kbd style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);">Enter</kbd> to search whole catalog in Dashboard.
+                </div>
+              </div>
+            `;
+            return;
+          }
+
+          let html = '';
+          data.forEach((book, idx) => {
+            const isAvail = book.status === 'Available';
+            html += `
+              <a href="${isAvail ? '/issue' : '/'}" class="spotlight-item ${idx === 0 ? 'highlighted' : ''}" data-idx="${idx}">
+                <div class="spotlight-item-left">
+                  <div class="spotlight-book-badge">${isAvail ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'}</div>
+                  <div class="spotlight-item-details">
+                    <div class="spotlight-item-title">${escapeHtml(book.title)}</div>
+                    <div class="spotlight-item-meta">
+                      ${escapeHtml(book.author)} • <span style="color:#cbd5e1;">${escapeHtml(book.category)}</span> • <span>${book.rack ? escapeHtml(book.rack) : 'Stacks'}</span> • ₹${Number(book.price).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                <div class="spotlight-item-right">
+                  <span class="spotlight-status-pill ${isAvail ? 'available' : 'issued'}">
+                    ${isAvail ? 'Available' : 'Issued'}
+                  </span>
+                  ${isAvail ? '<span class="spotlight-action-btn">Issue ↵</span>' : '<span style="font-size:11px;color:#94a3b8;">View</span>'}
+                </div>
+              </a>
+            `;
+          });
+          resultsBox.innerHTML = html;
+          selectedIndex = 0;
+        })
+        .catch(() => {
+          resultsBox.innerHTML = '<div style="padding: 20px; text-align: center; color: #ef4444;">Error fetching catalog records.</div>';
+        });
+    }
+
+    function escapeHtml(t) {
+      if (!t) return '';
+      const div = document.createElement('div');
+      div.textContent = t;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
