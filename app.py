@@ -8,30 +8,15 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Resolve candidate template directories for both local and serverless execution
-template_dirs = [
-    d for d in [
-        os.path.join(BASE_DIR, "templates"),
-        os.path.join(BASE_DIR, "api", "templates"),
-        os.path.join(os.getcwd(), "templates"),
-        os.path.join(os.getcwd(), "api", "templates"),
-        "/var/task/templates",
-        "/var/task/api/templates"
-    ] if os.path.isdir(d)
-]
-
-primary_tpl = template_dirs[0] if template_dirs else os.path.join(BASE_DIR, "templates")
-primary_static = os.path.join(BASE_DIR, "static") if os.path.isdir(os.path.join(BASE_DIR, "static")) else os.path.join(BASE_DIR, "api", "static")
+template_dir = os.path.join(BASE_DIR, "templates")
+static_dir = os.path.join(BASE_DIR, "static")
 
 app = Flask(
     __name__,
-    template_folder=primary_tpl,
-    static_folder=primary_static
+    template_folder=template_dir,
+    static_folder=static_dir
 )
 app.secret_key = "smart-library-management-system-secret-key-2026"
-
-if template_dirs:
-    app.jinja_loader = ChoiceLoader([FileSystemLoader(d) for d in template_dirs])
 
 class VercelPathMiddleware:
     """
